@@ -5,19 +5,26 @@ import { EventService } from '../application/EventService'
 import { Event, EventType } from '../domain/model/Event'
 import { EventOutputPort } from '../domain/ports/EventOutputPort'
 
-// Simple mock of EventOutputPort to verify broadcast calls
+// Complete mock of EventOutputPort to verify all types of calls
 class MockEventOutputPort implements EventOutputPort {
-  sendToUser(userId: string, arg1: { message: string }): unknown {
-    console.log(userId, arg1)
-    throw new Error('Method not implemented.')
-  }
   public broadcastCalls: Event[] = []
+  public userCalls: { userId: string; data: any }[] = []
 
   broadcastEUR(messageJson: Event): void {
     this.broadcastCalls.push(messageJson)
   }
+
   broadcastUSD(messageJson: Event): void {
     this.broadcastCalls.push(messageJson)
+  }
+
+  sendToUser(userId: string, data: any): void {
+    this.userCalls.push({ userId, data })
+  }
+
+  reset(): void {
+    this.broadcastCalls = []
+    this.userCalls = []
   }
 }
 
@@ -32,11 +39,12 @@ describe('EventService', () => {
   })
 
   afterEach(() => {
-    // Reset container or do cleanup if necessary
+    // Reset container and mock
+    mockEventOutput.reset()
     container.reset()
   })
 
-  it('should successfully dispatch a CRYPTO_UPDATE_* event with multiple crypto data', async () => {
+  it('should successfully dispatch a CRYPTO_UPDATE_EUR event with multiple crypto data', async () => {
     const validEvent: Event = {
       eventType: EventType.CRYPTO_UPDATE_EUR,
       payload: [
@@ -111,6 +119,99 @@ describe('EventService', () => {
     expect(broadcastedEvent.payload).to.deep.equal(validEvent.payload)
   })
 
+  it('should successfully dispatch a CRYPTO_UPDATE_USD event', async () => {
+    const validEvent: Event = {
+      eventType: EventType.CRYPTO_UPDATE_USD,
+      payload: [
+        {
+          id: 'bitcoin',
+          symbol: 'btc',
+          name: 'Bitcoin',
+          image: 'https://example.com/btc.png',
+          price: 40000.0,
+          marketCap: 8.0e11,
+          marketCapRank: 1,
+          fullyDilutedValuation: 8.0e11,
+          totalVolume: 2.0e10,
+          high24h: 41000.0,
+          low24h: 39000.0,
+          priceChange24h: 1000.0,
+          priceChangePercentage24h: 2.5,
+          marketCapChange24h: 2.0e10,
+          marketCapChangePercentage24h: 2.5,
+          circulatingSupply: 1.9e7,
+          totalSupply: 1.9e7,
+          maxSupply: 2.1e7,
+          ath: 69000.0,
+          athChangePercentage: -42.0,
+          athDate: '2021-11-10T00:00:00.000Z',
+          atl: 67.81,
+          atlChangePercentage: 58900.0,
+          atlDate: '2013-07-06T00:00:00.000Z',
+          lastUpdated: '2025-01-28T12:00:00.000Z',
+          currency: 'usd'
+        }
+      ]
+    }
+
+    await eventService.processEvent(validEvent)
+
+    expect(mockEventOutput.broadcastCalls).to.have.lengthOf(1)
+    const broadcastedEvent = mockEventOutput.broadcastCalls[0]
+
+    expect(broadcastedEvent.eventType).to.equal('CRYPTO_UPDATE')
+    expect(broadcastedEvent).to.have.property('timestamp')
+    expect(broadcastedEvent.payload).to.deep.equal(validEvent.payload)
+  })
+
+  it('should successfully dispatch USER_NOTIFICATION events to specific users', async () => {
+    const notificationEvent: Event = {
+      eventType: EventType.USER_NOTIFICATION,
+      payload: {
+        userId: 'user123',
+        cryptoId: 'bitcoin',
+        alertPrice: '40000',
+        currentPrice: '41000',
+        alertType: 'ABOVE'
+      }
+    }
+
+    await eventService.processEvent(notificationEvent)
+
+    // Verify user-specific notification was sent
+    expect(mockEventOutput.userCalls).to.have.lengthOf(1)
+    const userCall = mockEventOutput.userCalls[0]
+
+    // Check correct user ID was targeted
+    expect(userCall.userId).to.equal('user123')
+
+    // Check message format is correct
+    expect(userCall.data).to.have.property('message')
+    expect(userCall.data.message).to.include('bitcoin')
+  })
+
+  it('should use custom message in USER_NOTIFICATION if provided', async () => {
+    const customMessageEvent: Event = {
+      eventType: EventType.USER_NOTIFICATION,
+      payload: {
+        userId: 'user123',
+        cryptoId: 'bitcoin',
+        alertPrice: '40000',
+        currentPrice: '39000',
+        alertType: 'BELOW',
+        message: 'This is a custom alert message!'
+      }
+    }
+
+    await eventService.processEvent(customMessageEvent)
+
+    expect(mockEventOutput.userCalls).to.have.lengthOf(1)
+    const userCall = mockEventOutput.userCalls[0]
+
+    expect(userCall.userId).to.equal('user123')
+    expect(userCall.data.message).to.equal('This is a custom alert message!')
+  })
+
   it('should throw an error for invalid event data with empty payload', async () => {
     // Payload is empty, so it's invalid based on isValidEventData
     const invalidEvent: Event = {
@@ -128,6 +229,24 @@ describe('EventService', () => {
         expect(error.message).to.equal('Invalid event data')
       } else {
         // If the error is not an instance of Error, fail the test
+        expect.fail('Thrown error is not an instance of Error')
+      }
+    }
+  })
+
+  it('should throw an error for invalid event type', async () => {
+    const invalidEvent = {
+      eventType: 'INVALID_TYPE',
+      payload: [{ id: 'bitcoin', price: 40000 }]
+    } as unknown as Event
+
+    try {
+      await eventService.processEvent(invalidEvent)
+      expect.fail('Expected processEvent to throw an error for invalid event type')
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        expect(error.message).to.include('Invalid event data')
+      } else {
         expect.fail('Thrown error is not an instance of Error')
       }
     }
