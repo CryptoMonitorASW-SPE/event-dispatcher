@@ -25,7 +25,7 @@ gitSemVer {
 }
 
 node {
-    version.set("22.13.1")
+    version.set("22.14.0")
 
     // Download a local Node.js distribution (instead of using a global one)
     download.set(true)
@@ -37,18 +37,84 @@ node {
     nodeProjectDir.set(file(project.projectDir))
 }
 
-tasks.register<NpmTask>("runBackend") {
-    dependsOn("prepareBackend")
-    args.set(listOf("run", "start"))
+tasks.register<Delete>("cleanBuild"){
+    group = "build"
+    description = "Delete dist and build directories"
+    doFirst {
+        delete("dist")
+        delete("build")
+    }
+}
+
+tasks.register<NpmTask>("npmCiRoot") {
+    group = "npm"
+    description = "Install npm dependencies in the root project"
+    workingDir = file("..")
+    args.set(listOf("ci"))
+}
+
+tasks.register<NpmTask>("npmCiApp") {
+    group = "npm"
+    description = "Install npm dependencies in the app directory"
+    args.set(listOf("ci"))
+}
+
+tasks.register("npmCiAll") {
+    group = "npm"
+    description = "Install npm dependencies in the root project and in the app directory"
+    dependsOn("npmCiRoot", "npmCiApp")
 }
 
 tasks.register<NpmTask>("prepareBackend") {
-    dependsOn("npm_install")
+    dependsOn("npmCiAll")
     args.set(listOf("run", "build"))
+}
+
+tasks.register<NpmTask>("runDev"){
+    dependsOn("prepareBackend")
+    args.set(listOf("run", "dev"))
+}
+
+tasks.register<NpmTask>("test") {
+    dependsOn("prepareBackend")
+    args.set(listOf("run", "test"))
 }
 
 tasks.register("printVersion") {
     doLast {
         println("Project version: ${project.version}")
     }
+}
+
+tasks.register<Exec>("dockerBuild") {
+    group = "docker"
+    description = "Build the Docker image"
+    workingDir = file("..")
+    commandLine("docker", "build", "-f", "Dockerfile", "-t", "event-dispatcher:latest", ".")
+}
+
+tasks.register<Exec>("dockerRun") {
+    group = "docker"
+    description = "Run the Docker container for the application"
+    dependsOn("dockerBuild")
+    commandLine("docker", "run", "-p", "3000:3000", "event-dispatcher:latest")
+}
+
+tasks.register<Exec>("dockerClean"){
+    group = "docker"
+    description = "Remove all the images"
+    commandLine("docker", "image", "prune", "-f")
+}
+
+tasks.register("preRunAll") {
+    group = "application"
+    description = "Clean, install dependencies and run tests"
+    dependsOn("cleanBuild", "npmCiAll", "test")
+}
+
+tasks.register("allInOne") {
+    group = "application"
+    description = "Run build and tests, then start the application"
+    dependsOn("preRunAll")
+    finalizedBy("runDev")
 }
