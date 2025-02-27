@@ -8,7 +8,7 @@ import { EventOutputPort } from '../domain/ports/EventOutputPort'
 // Complete mock of EventOutputPort to verify all types of calls
 class MockEventOutputPort implements EventOutputPort {
   public broadcastCalls: Event[] = []
-  public userCalls: { userId: string; data: any }[] = []
+  public userCalls: { userId: string; data: { message: string } }[] = []
 
   broadcastEUR(messageJson: Event): void {
     this.broadcastCalls.push(messageJson)
@@ -18,7 +18,7 @@ class MockEventOutputPort implements EventOutputPort {
     this.broadcastCalls.push(messageJson)
   }
 
-  sendToUser(userId: string, data: any): void {
+  sendToUser(userId: string, data: { message: string }): void {
     this.userCalls.push({ userId, data })
   }
 
