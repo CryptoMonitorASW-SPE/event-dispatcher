@@ -65,18 +65,19 @@ tasks.register("npmCiAll") {
     dependsOn("npmCiRoot", "npmCiApp")
 }
 
-tasks.register<NpmTask>("prepareBackend") {
+tasks.register<NpmTask>("buildBackend") {
     dependsOn("npmCiAll")
     args.set(listOf("run", "build"))
 }
 
 tasks.register<NpmTask>("runDev"){
-    dependsOn("prepareBackend")
+    dependsOn("buildBackend")
     args.set(listOf("run", "dev"))
+    environment.putAll(mapOf("PORT" to "3030"))
 }
 
 tasks.register<NpmTask>("test") {
-    dependsOn("prepareBackend")
+    dependsOn("buildBackend")
     args.set(listOf("run", "test"))
 }
 
@@ -84,26 +85,6 @@ tasks.register("printVersion") {
     doLast {
         println("Project version: ${project.version}")
     }
-}
-
-tasks.register<Exec>("dockerBuild") {
-    group = "docker"
-    description = "Build the Docker image"
-    workingDir = file("..")
-    commandLine("docker", "build", "-f", "Dockerfile", "-t", "event-dispatcher:latest", ".")
-}
-
-tasks.register<Exec>("dockerRun") {
-    group = "docker"
-    description = "Run the Docker container for the application"
-    dependsOn("dockerBuild")
-    commandLine("docker", "run", "-p", "3000:3000", "event-dispatcher:latest")
-}
-
-tasks.register<Exec>("dockerClean"){
-    group = "docker"
-    description = "Remove all the images"
-    commandLine("docker", "image", "prune", "-f")
 }
 
 tasks.register("preRunAll") {
