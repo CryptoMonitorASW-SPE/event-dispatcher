@@ -4,21 +4,46 @@ import { inject, injectable } from 'tsyringe'
 import { EventOutputPort } from '../../domain/ports/EventOutputPort'
 import { AuthServicePort, AuthenticatedSocket } from '../../domain/ports/AuthServicePort'
 import * as cookie from 'cookie'
-
+/**
+ * Adapter class for real-time WebSocket communication via Socket.IO.
+ *
+ * This class implements the EventOutputPort interface and manages two separate Socket.IO servers:
+ * a public one for unauthenticated broadcasts and an authenticated one for user-specific messages.
+ * It handles JWT authentication, maintains user-socket mappings, and provides methods for
+ * broadcasting events to clients.
+ */
 @injectable()
 export class SocketIOAdapter implements EventOutputPort {
   private io!: SocketIOServer
   private authIo!: SocketIOServer
   private isInitialized = false
   private userSocketMap: Record<string, Socket> = {}
-
+  /**
+   * Constructs a new SocketIOAdapter.
+   *
+   * @param httpServer - The HTTP server instance to attach Socket.IO servers to.
+   * @param authService - Service for validating authentication tokens.
+   */
   constructor(
     @inject('HttpServer') private httpServer: NodeHttpServer,
     @inject('AuthServicePort') private authService: AuthServicePort
   ) {
     this.initialize()
   }
-
+  /**
+   * Initializes the Socket.IO servers and sets up connection handlers.
+   *
+   * Creates two Socket.IO servers:
+   *
+   * - **Public server at '/updates' path**
+   *   Allows unauthenticated connections and handles public broadcasts.
+   *
+   * - **Authenticated server at '/user-updates' path**
+   *   Requires valid JWT authentication via cookies and maintains user-socket mappings.
+   *   *Uses middleware to validate authentication tokens.*
+   *
+   * @returns {void}
+   */
   public initialize(): void {
     if (!this.isInitialized) {
       // Public socket (no auth)
@@ -89,6 +114,22 @@ export class SocketIOAdapter implements EventOutputPort {
       this.isInitialized = true
     }
   }
+
+  /**
+   * Broadcasts a message to all clients on the EUR channel.
+   *
+   * **Event:** broadcastEUR
+   *
+   * **Description:** Sends cryptocurrency updates in EUR to all clients connected to the public socket.
+   *
+   * **Remarks:**
+   * - Does not require authentication to receive these broadcasts.
+   * - Uses the 'broadcastEUR' event name for all clients.
+   *
+   * @param messageJson - The message data to broadcast.
+   * @returns {void}
+   * @throws Error if the adapter is not initialized.
+   */
   public broadcastEUR(messageJson: any): void {
     if (!this.isInitialized) {
       throw new Error('SocketIOAdapter not initialized')
@@ -96,6 +137,21 @@ export class SocketIOAdapter implements EventOutputPort {
     this.io.emit('broadcastEUR', messageJson)
   }
 
+  /**
+   * Broadcasts a message to all clients on the USD channel.
+   *
+   * **Event:** broadcastUSD
+   *
+   * **Description:** Sends cryptocurrency updates in USD to all clients connected to the public socket.
+   *
+   * **Remarks:**
+   * - Does not require authentication to receive these broadcasts.
+   * - Uses the 'broadcastUSD' event name for all clients.
+   *
+   * @param messageJson - The message data to broadcast.
+   * @returns {void}
+   * @throws Error if the adapter is not initialized.
+   */
   public broadcastUSD(messageJson: any): void {
     if (!this.isInitialized) {
       throw new Error('SocketIOAdapter not initialized')
@@ -103,7 +159,23 @@ export class SocketIOAdapter implements EventOutputPort {
     this.io.emit('broadcastUSD', messageJson)
   }
 
-  // Send a message to a specific authenticated user
+  /**
+   * Sends a message to a specific authenticated user.
+   *
+   * **Event:** user-specific-event
+   *
+   * **Description:** Delivers personalized notifications to a specific user by their userId.
+   *
+   * **Remarks:**
+   * - Only sends if the user has an active authenticated socket connection.
+   * - Uses the 'user-specific-event' event name for targeted messaging.
+   * - If the user has no active socket connection, the message is silently ignored.
+   *
+   * @param userId - The ID of the user to send the message to.
+   * @param messageJson - The message data to send.
+   * @returns {void}
+   * @throws Error if the adapter is not initialized.
+   */
   public sendToUser(userId: string, messageJson: any): void {
     if (!this.isInitialized) {
       throw new Error('SocketIOAdapter not initialized')
