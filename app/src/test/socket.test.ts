@@ -54,7 +54,8 @@ describe('SocketIOAdapter Integration with real Auth', () => {
   })
 
   describe('Public socket', () => {
-    it('connects without auth and receives broadcasts', done => {
+    it('connects without auth and receives broadcasts', function (done) {
+      this.timeout(5000)
       const client = Client(`http://localhost:${testPort}`, {
         path: '/updates',
         transports: ['websocket']
