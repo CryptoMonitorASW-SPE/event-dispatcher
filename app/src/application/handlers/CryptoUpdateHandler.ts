@@ -1,13 +1,13 @@
-import { EventHandler } from '../model/EventHandler'
-import { Event, EventType } from '../model/Event'
-import { EventOutputPort } from '../ports/EventOutputPort'
+import { EventHandler } from '../../domain/model/EventHandler'
+import { Event, EventType } from '../../domain/model/Event'
+import { EventOutputPort } from '../../domain/ports/EventOutputPort'
+import { NotificationServicePort } from '../../domain/ports/NotificationServicePort'
 import { inject, injectable } from 'tsyringe'
-import axios from 'axios'
-import { createViewUpdateMessage, ViewUpdateMessage } from './ViewUpdateMessage'
+import { createViewUpdateMessage, ViewUpdateMessage } from '../DTO/ViewUpdateMessage'
 import {
   createNotificationUpdateMessage,
   NotificationUpdateMessage
-} from './NotificationUpdateMessage'
+} from '../DTO/NotificationUpdateMessage'
 
 @injectable()
 export class CryptoUpdateHandler implements EventHandler {
@@ -15,7 +15,10 @@ export class CryptoUpdateHandler implements EventHandler {
 
   eventOutbound = 'CRYPTO_UPDATE'
 
-  constructor(@inject('EventOutputPort') private eventOutput: EventOutputPort) {}
+  constructor(
+    @inject('EventOutputPort') private eventOutput: EventOutputPort,
+    @inject('NotificationServicePort') private notificationService: NotificationServicePort
+  ) {}
 
   handle(eventInbound: Event): void {
     const updateMessage: ViewUpdateMessage = createViewUpdateMessage(
@@ -30,18 +33,10 @@ export class CryptoUpdateHandler implements EventHandler {
 
     if (eventInbound.eventType === EventType.CRYPTO_UPDATE_EUR) {
       this.eventOutput.broadcastEUR(updateMessage)
-
-      this.notifyService('eur', notificationUpdateMessage)
+      this.notificationService.sendNotification('eur', notificationUpdateMessage)
     } else if (eventInbound.eventType === EventType.CRYPTO_UPDATE_USD) {
       this.eventOutput.broadcastUSD(updateMessage)
-
-      this.notifyService('usd', notificationUpdateMessage)
+      this.notificationService.sendNotification('usd', notificationUpdateMessage)
     }
-  }
-
-  private notifyService(currency: 'usd' | 'eur', messageJson: any): void {
-    axios.post(`http://notification:8080/data?currency=${currency}`, messageJson).catch(error => {
-      console.error('Error notifying notification service:', error)
-    })
   }
 }

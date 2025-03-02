@@ -4,18 +4,19 @@ import { injectable, inject } from 'tsyringe'
 import { EventInputPort } from '../domain/ports/EventInputPort'
 import { DomainEventDispatcher, EventDispatcher } from '../domain/services/EventDispatcher'
 import { Event, EventType } from '../domain/model/Event'
-import { CryptoUpdateHandler } from '../domain/services/CryptoUpdateHandler'
+import { CryptoUpdateHandler } from './handlers/CryptoUpdateHandler'
 import { EventHandler } from '../domain/model/EventHandler'
 import { EventOutputPort } from '../domain/ports/EventOutputPort' // Ensure this import exists
-import { UserNotificationHandler } from '../domain/services/UserNotificationHandler'
+import { UserNotificationHandler } from './handlers/UserNotificationHandler'
 
 @injectable()
 export class EventService implements EventInputPort {
   private eventDispatcher: EventDispatcher
 
   constructor(@inject('EventOutputPort') private eventOutputPort: EventOutputPort) {
-    const cryptoUpdateHandler = new CryptoUpdateHandler(eventOutputPort)
-    const userNotificationHandler = new UserNotificationHandler(eventOutputPort) // Create instance of the new handler
+    // Resolve all handlers through the container for proper dependency injection
+    const cryptoUpdateHandler = container.resolve(CryptoUpdateHandler)
+    const userNotificationHandler = container.resolve(UserNotificationHandler)
     // Initialize other handlers here
     const handlers: EventHandler[] = [cryptoUpdateHandler, userNotificationHandler] // Add the new handler to the list
     const eventDispatcher = new DomainEventDispatcher(handlers)

@@ -10,6 +10,7 @@ import { EventAdapter } from './infrastructure/adapters/EventAdapter'
 import { SocketIOAdapter } from './infrastructure/adapters/SocketIOAdapter'
 import { EventService } from './application/EventService'
 import { AuthServiceImpl } from './infrastructure/adapters/AuthServiceImpl'
+import { NotificationAdapter } from './infrastructure/adapters/NotificationAdapter'
 
 // Load environment variables
 dotenv.config({ path: resolve(__dirname, '../../../../.env') })
@@ -32,6 +33,7 @@ container.registerInstance('HttpServer', server)
 container.registerSingleton('EventOutputPort', SocketIOAdapter)
 container.registerSingleton('AuthServicePort', AuthServiceImpl)
 container.registerSingleton('EventInputPort', EventService)
+container.registerSingleton('NotificationServicePort', NotificationAdapter)
 
 const eventAdapter = container.resolve(EventAdapter)
 eventAdapter.initialize()
