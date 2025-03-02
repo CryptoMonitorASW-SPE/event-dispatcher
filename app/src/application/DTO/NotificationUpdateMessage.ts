@@ -1,5 +1,5 @@
-import { CryptoPriceData } from '../model/CryptoPriceData'
-import { Event } from '../model/Event'
+import { CryptoPriceData } from '../../domain/model/CryptoPriceData'
+import { Event } from '../../domain/model/Event'
 
 export interface NotificationUpdateMessage {
   timestamp: string

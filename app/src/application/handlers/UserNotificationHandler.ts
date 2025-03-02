@@ -1,6 +1,6 @@
-import { EventHandler } from '../model/EventHandler'
-import { Event, EventType } from '../model/Event'
-import { EventOutputPort } from '../ports/EventOutputPort'
+import { EventHandler } from '../../domain/model/EventHandler'
+import { Event, EventType } from '../../domain/model/Event'
+import { EventOutputPort } from '../../domain/ports/EventOutputPort'
 import { inject, injectable } from 'tsyringe'
 
 @injectable()

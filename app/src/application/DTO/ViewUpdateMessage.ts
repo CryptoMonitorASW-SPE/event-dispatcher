@@ -1,4 +1,4 @@
-import { CryptoData } from '../model/CryptoData'
+import { CryptoData } from '../../domain/model/CryptoData'
 
 export interface ViewUpdateMessage {
   eventType: string
