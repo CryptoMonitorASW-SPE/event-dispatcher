@@ -4,6 +4,7 @@ import { container } from 'tsyringe'
 import { EventService } from '../application/EventService'
 import { Event, EventType } from '../domain/model/Event'
 import { EventOutputPort } from '../domain/ports/EventOutputPort'
+import { NotificationServicePort } from '../domain/ports/NotificationServicePort'
 
 // Complete mock of EventOutputPort to verify all types of calls
 class MockEventOutputPort implements EventOutputPort {
@@ -35,6 +36,9 @@ describe('EventService', () => {
   beforeEach(() => {
     mockEventOutput = new MockEventOutputPort()
     container.registerInstance<EventOutputPort>('EventOutputPort', mockEventOutput)
+    container.registerInstance<NotificationServicePort>('NotificationServicePort', {
+      sendNotification: () => Promise.resolve()
+    })
     eventService = container.resolve(EventService)
   })
 
