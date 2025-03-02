@@ -4,6 +4,7 @@ import { inject, injectable } from 'tsyringe'
 import { EventOutputPort } from '../../domain/ports/EventOutputPort'
 import { AuthServicePort, AuthenticatedSocket } from '../../domain/ports/AuthServicePort'
 import * as cookie from 'cookie'
+import dotenv from 'dotenv'
 /**
  * Adapter class for real-time WebSocket communication via Socket.IO.
  *
@@ -46,6 +47,12 @@ export class SocketIOAdapter implements EventOutputPort {
    */
   public initialize(): void {
     if (!this.isInitialized) {
+      // Get environment variables for dynamic configuration
+      const frontendName = process.env.FRONTEND_SERVICE_NAME || 'frontend'
+      const frontendPort = process.env.FRONTEND_SERVICE_PORT || '80'
+
+      // Compose CORS origin dynamically
+      const corsOrigin = `http://${frontendName}:${frontendPort}`
       // Public socket (no auth)
       this.io = new SocketIOServer(this.httpServer, {
         path: '/updates',
@@ -63,7 +70,7 @@ export class SocketIOAdapter implements EventOutputPort {
       this.authIo = new SocketIOServer(this.httpServer, {
         path: '/user-updates',
         cors: {
-          origin: 'http://frontend:80',
+          origin: corsOrigin,
           methods: ['GET', 'POST'],
           credentials: true
         }
