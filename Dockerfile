@@ -1,47 +1,37 @@
-# ================================================
-# Stage 1: Build the application
-# ================================================
-FROM node:22.14-alpine AS build
-
-# Set working directory
+# Stage 1: Build with Gradle and Java
+FROM gradle:8.12.1-jdk-alpine AS build
 WORKDIR /usr/src/app
-
-# Copy package files from the app folder
-COPY app/package*.json ./
-# (Optional) If you run gradle tasks inside Docker, you could copy build.gradle.kts too
-# COPY app/build.gradle.kts ./
 
 # Install dependencies
-RUN npm install
+RUN apk add --update --no-cache curl nodejs npm
 
-# Copy the rest of the application code
-COPY app/ ./
+# Check installations
+RUN java -version && gradle --version && node -v && npm -v
 
-# (Optional) If you had a build step for a front-end, you might do: 
-RUN npm run build
+# Copy gradle configuration files first (for better layer caching)
+COPY app/build.gradle.kts settings.gradle.kts ./app/
+COPY gradle ./app/gradle
+COPY ./gradlew ./gradlew.bat ./app/
 
-# ================================================
-# Stage 2: Create the final image
-# ================================================
-FROM node:22.14-alpine AS build-final
+# Copy the rest of the source code
+COPY . .
 
-RUN apk update && apk upgrade
-RUN apk --no-cache add curl
+# Build the application
+RUN gradle build
+RUN gradle installProdDependencies
 
-# Set working directory
-WORKDIR /usr/src/app
+# Stage 2: Runtime image with Node.js
+FROM node:22-alpine AS runtime
+WORKDIR /app
+RUN apk add --update --no-cache curl
 
-# Copy package.json and package-lock.json
-COPY app/package*.json ./
+# Copy necessary files from the build stage
+COPY --from=build /usr/src/app/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/app/dist ./dist
+COPY --from=build /usr/src/app/app/package.json ./
 
-# Install only production dependencies
-RUN npm install --production
-
-# Copy built JavaScript files from build stage
-COPY --from=build /usr/src/app/dist ./dist
-
-# Expose the backend port
+# Expose port
 EXPOSE 3000
 
-# Start the application using the compiled JavaScript
-CMD ["npm", "start"]
+# Start the application
+CMD ["npm", "run", "start"]
