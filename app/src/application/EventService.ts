@@ -1,4 +1,3 @@
-// EventService.ts
 import { container } from 'tsyringe'
 import { injectable, inject } from 'tsyringe'
 import { EventInputPort } from '../domain/ports/EventInputPort'
@@ -6,7 +5,7 @@ import { DomainEventDispatcher, EventDispatcher } from '../domain/services/Event
 import { Event, EventType } from '../domain/model/Event'
 import { CryptoUpdateHandler } from './handlers/CryptoUpdateHandler'
 import { EventHandler } from '../domain/model/EventHandler'
-import { EventOutputPort } from '../domain/ports/EventOutputPort' // Ensure this import exists
+import { EventOutputPort } from '../domain/ports/EventOutputPort'
 import { UserNotificationHandler } from './handlers/UserNotificationHandler'
 
 @injectable()
@@ -17,11 +16,10 @@ export class EventService implements EventInputPort {
     // Resolve all handlers through the container for proper dependency injection
     const cryptoUpdateHandler = container.resolve(CryptoUpdateHandler)
     const userNotificationHandler = container.resolve(UserNotificationHandler)
-    // Initialize other handlers here
-    const handlers: EventHandler[] = [cryptoUpdateHandler, userNotificationHandler] // Add the new handler to the list
+    const handlers: EventHandler[] = [cryptoUpdateHandler, userNotificationHandler]
     const eventDispatcher = new DomainEventDispatcher(handlers)
     container.registerInstance<DomainEventDispatcher>('EventDispatcher', eventDispatcher)
-    this.eventDispatcher = eventDispatcher // Assigning to the class property
+    this.eventDispatcher = eventDispatcher
   }
 
   async processEvent(eventJson: Event): Promise<void> {
